@@ -1,3 +1,9 @@
+To install
+==========
+
+    pip install lbcapi
+
+
 HMAC example
 ============
 
