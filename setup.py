@@ -13,7 +13,6 @@ setup(
     license='MIT License',
     description='Make API calls to LocalBitcoins API.',
     author='LocalBitcoins Oy',
-    author_email='support.team@localbitcoins.com',
     url='https://github.com/LocalBitcoins/lbcapi',
     install_requires=[
         'requests',
