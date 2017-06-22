@@ -1,7 +1,10 @@
 import hashlib
 import hmac as hmac_lib
+
 import requests
 import time
+
+import sys
 
 
 def oauth2(access_token, client_id, client_secret=None, refresh_token=None, server='https://localbitcoins.com'):
@@ -32,7 +35,11 @@ class Connection():
         self.hmac_key = None
         self.hmac_secret = None
 
-    def call(self, method, url, params={}, stream=False, files=None):
+    def call(self, method, url, params=None, stream=False, files=None):
+        # Direct params={} in method signature is errorneus.
+        if params is None:
+            params = {}
+
         method = method.upper()
         if method not in ['GET', 'POST']:
             raise Exception(u'Invalid method {}!'.format(method))
@@ -44,9 +51,14 @@ class Connection():
         if url.startswith(self.server):
             url = url[len(self.server):]
 
-        # Convert parameters into list of tuples.
-        # This makes request encoding to keep the order
-        params = params.items()
+        if sys.version_info <= (3, 0):
+            # If not py3 - convert parameters into list of tuples.
+            # This makes request encoding to keep the order.
+            # In py3 "requests" lib fails with list of tuples,
+            # so the dict is necessary.
+            params = params.items()
+
+
 
         # If OAuth2
         if self.access_token:
@@ -79,7 +91,12 @@ class Connection():
             # Loop, so retrying is possible if nonce fails
             while True:
 
-                nonce = long(time.time() * 1000)
+                if sys.version_info >= (3, 0):
+                    # There is no "long" type in py3
+                    nonce = int(time.time()) * 10**3
+
+                else:
+                    nonce = long(time.time() * 1000)
 
                 # POST method. Kind of tricky because of files
                 if method == 'POST':
@@ -91,7 +108,18 @@ class Connection():
                     message = str(nonce) + str(self.hmac_key) + str(url)
                     if api_request.body:
                         message += str(api_request.body)
-                    signature = hmac_lib.new(str(self.hmac_secret), msg=message, digestmod=hashlib.sha256).hexdigest().upper()
+
+                    if sys.version_info >= (3, 0):
+                        signature = hmac_lib.new(
+                            bytes(self.hmac_secret, 'utf-8'),
+                            msg=bytes(message, 'utf-8'),
+                            digestmod=hashlib.sha256).hexdigest().upper()
+
+                    else:
+                        signature = hmac_lib.new(
+                            str(self.hmac_secret),
+                            msg=str(message),
+                            digestmod=hashlib.sha256).hexdigest().upper()
 
                     # Store signature and other stuff to headers
                     api_request.headers['Apiauth-Key'] = self.hmac_key
@@ -107,8 +135,19 @@ class Connection():
 
                     params_urlencoded = requests.models.RequestEncodingMixin._encode_params(params)
                     message = str(nonce) + self.hmac_key + url + params_urlencoded
-                    signature = hmac_lib.new(str(self.hmac_secret), msg=message, digestmod=hashlib.sha256).hexdigest().upper()
+                    
+                    if sys.version_info >= (3, 0):
+                        signature = hmac_lib.new(
+                            bytes(self.hmac_secret, 'utf-8'), 
+                            msg=bytes(message, 'utf-8'), 
+                            digestmod=hashlib.sha256).hexdigest().upper()
+                    else:
+                        signature = hmac_lib.new(
+                            str(self.hmac_secret), 
+                            msg=str(message), 
+                            digestmod=hashlib.sha256).hexdigest().upper()
 
+                            
                     headers = {
                         "Apiauth-Key": self.hmac_key,
                         "Apiauth-Nonce": str(nonce),
