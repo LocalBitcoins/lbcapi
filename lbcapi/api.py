@@ -2,6 +2,7 @@ import hashlib
 import hmac as hmac_lib
 import requests
 import time
+import urlparse
 
 
 def oauth2(access_token, client_id, client_secret=None, refresh_token=None, server='https://localbitcoins.com'):
@@ -32,7 +33,7 @@ class Connection():
         self.hmac_key = None
         self.hmac_secret = None
 
-    def call(self, method, url, params={}, stream=False, files=None):
+    def call(self, method, url, params=None, stream=False, files=None):
         method = method.upper()
         if method not in ['GET', 'POST']:
             raise Exception(u'Invalid method {}!'.format(method))
@@ -43,10 +44,6 @@ class Connection():
         # If URL is absolute, then convert it
         if url.startswith(self.server):
             url = url[len(self.server):]
-
-        # Convert parameters into list of tuples.
-        # This makes request encoding to keep the order
-        params = params.items()
 
         # If OAuth2
         if self.access_token:
@@ -79,43 +76,32 @@ class Connection():
             # Loop, so retrying is possible if nonce fails
             while True:
 
-                nonce = long(time.time() * 1000)
+                nonce = str(int(time.time() * 1000))
 
-                # POST method. Kind of tricky because of files
+                # Prepare request based on method.
                 if method == 'POST':
-
-                    # Prepare request, but do not send it yet
                     api_request = requests.Request('POST', self.server + url, data=params, files=files).prepare()
-
-                    # Calculate signature
-                    message = str(nonce) + str(self.hmac_key) + str(url)
-                    if api_request.body:
-                        message += str(api_request.body)
-                    signature = hmac_lib.new(str(self.hmac_secret), msg=message, digestmod=hashlib.sha256).hexdigest().upper()
-
-                    # Store signature and other stuff to headers
-                    api_request.headers['Apiauth-Key'] = self.hmac_key
-                    api_request.headers['Apiauth-Nonce'] = str(nonce)
-                    api_request.headers['Apiauth-Signature'] = signature
-
-                    # Send request
-                    session = requests.Session()
-                    response = session.send(api_request, stream=stream)
+                    params_encoded = api_request.body
 
                 # GET method
                 else:
+                    api_request = requests.Request('GET', self.server + url, params=params).prepare()
+                    params_encoded = urlparse.urlparse(api_request.url).query
 
-                    params_urlencoded = requests.models.RequestEncodingMixin._encode_params(params)
-                    message = str(nonce) + self.hmac_key + url + params_urlencoded
-                    signature = hmac_lib.new(str(self.hmac_secret), msg=message, digestmod=hashlib.sha256).hexdigest().upper()
+                # Calculate signature
+                message = nonce + self.hmac_key + str(url)
+                if params_encoded:
+                    message += str(params_encoded)
+                signature = hmac_lib.new(self.hmac_secret, msg=message, digestmod=hashlib.sha256).hexdigest().upper()
 
-                    headers = {
-                        "Apiauth-Key": self.hmac_key,
-                        "Apiauth-Nonce": str(nonce),
-                        "Apiauth-Signature": signature,
-                    }
+                # Store signature and other stuff to headers
+                api_request.headers['Apiauth-Key'] = self.hmac_key
+                api_request.headers['Apiauth-Nonce'] = nonce
+                api_request.headers['Apiauth-Signature'] = signature
 
-                    response = requests.get(self.server + url, params=params, headers=headers, stream=stream)
+                # Send request
+                session = requests.Session()
+                response = session.send(api_request, stream=stream)
 
                 # If HMAC Nonce is already used, then wait a little and try again
                 try:
@@ -157,5 +143,5 @@ class Connection():
         self.access_token = None
         self.refresh_token = None
         self.expiry_seconds = None
-        self.hmac_key = hmac_key
-        self.hmac_secret = hmac_secret
+        self.hmac_key = str(hmac_key)
+        self.hmac_secret = str(hmac_secret)
