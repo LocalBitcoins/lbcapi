@@ -2,7 +2,12 @@ import hashlib
 import hmac as hmac_lib
 import requests
 import time
-import urlparse
+try:
+    # Python 3.x
+    from urllib.parse import urlparse
+except ImportError:
+    # Python 2.7
+    from urlparse import urlparse
 
 
 def oauth2(access_token, client_id, client_secret=None, refresh_token=None, server='https://localbitcoins.com'):
@@ -76,7 +81,8 @@ class Connection():
             # Loop, so retrying is possible if nonce fails
             while True:
 
-                nonce = str(int(time.time() * 1000))
+                # .encode('ascii') ensures a bytestring on Python 2.7 and 3.x
+                nonce = str(int(time.time() * 1000)).encode('ascii')
 
                 # Prepare request based on method.
                 if method == 'POST':
@@ -86,12 +92,13 @@ class Connection():
                 # GET method
                 else:
                     api_request = requests.Request('GET', self.server + url, params=params).prepare()
-                    params_encoded = urlparse.urlparse(api_request.url).query
+                    params_encoded = urlparse(api_request.url).query
 
                 # Calculate signature
-                message = nonce + self.hmac_key + str(url)
+                # .encode('ascii') ensures a bytestring on Python 2.7 and 3.x
+                message = nonce + self.hmac_key + url.encode('ascii')
                 if params_encoded:
-                    message += str(params_encoded)
+                    message += str(params_encoded).encode('ascii')
                 signature = hmac_lib.new(self.hmac_secret, msg=message, digestmod=hashlib.sha256).hexdigest().upper()
 
                 # Store signature and other stuff to headers
@@ -143,5 +150,6 @@ class Connection():
         self.access_token = None
         self.refresh_token = None
         self.expiry_seconds = None
-        self.hmac_key = str(hmac_key)
-        self.hmac_secret = str(hmac_secret)
+        # .encode('ascii') ensures a bytestring on Python 2.7 and 3.x
+        self.hmac_key = hmac_key.encode('ascii')
+        self.hmac_secret = hmac_secret.encode('ascii')
