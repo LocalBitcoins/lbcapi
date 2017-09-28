@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import hmac as hmac_lib
 import requests
@@ -5,9 +6,9 @@ import time
 import urlparse
 
 
-def oauth2(access_token, client_id, client_secret=None, refresh_token=None, server='https://localbitcoins.com'):
+def oauth2(access_token, client_id, client_secret=None, refresh_token=None, expires_at=None, server='https://localbitcoins.com'):
     conn = Connection()
-    conn._set_oauth2(server, client_id, client_secret, access_token, refresh_token)
+    conn._set_oauth2(server, client_id, client_secret, access_token, refresh_token, expires_at)
     return conn
 
 
@@ -27,7 +28,7 @@ class Connection():
         self.client_secret = None
         self.access_token = None
         self.refresh_token = None
-        self.expiry_seconds = None
+        self.expires_at = None
 
         # HMAC stuff
         self.hmac_key = None
@@ -48,8 +49,8 @@ class Connection():
         # If OAuth2
         if self.access_token:
 
-            # Refresh session, if possible
-            if self.refresh_token and self.client_id and self.client_secret:
+            # If token is expiring tomorrow, then try to refresh it
+            if self.refresh_token and self.client_id and self.client_secret and (not self.expires_at or self.expires_at < datetime.datetime.utcnow() + datetime.timedelta(days=1)):
                 refresh_params = {
                     'refresh_token': self.refresh_token,
                     'grant_type': 'refresh_token',
@@ -59,7 +60,7 @@ class Connection():
                 r = requests.post(self.server + '/oauth2/access_token/', data=refresh_params)
                 self.access_token = r.json()['access_token']
                 self.refresh_token = r.json()['refresh_token']
-                self.expiry_seconds = int(r.json()['expires_in'])
+                self.expires_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=int(r.json()['expires_in']))
 
             headers = {
                 'Authorization-Extra': 'Bearer ' + self.access_token,
@@ -123,16 +124,16 @@ class Connection():
     def get_refresh_token(self):
         return self.refresh_token
 
-    def get_expiry_seconds(self):
-        return self.expiry_seconds
+    def get_expires_at(self):
+        return self.expires_at
 
-    def _set_oauth2(self, server, client_id, client_secret, access_token, refresh_token):
+    def _set_oauth2(self, server, client_id, client_secret, access_token, refresh_token, expires_at):
         self.server = server
         self.client_id = client_id
         self.client_secret = client_secret
         self.access_token = access_token
         self.refresh_token = refresh_token
-        self.expiry_seconds = None
+        self.expires_at = expires_at
         self.hmac_key = None
         self.hmac_secret = None
 
@@ -142,6 +143,6 @@ class Connection():
         self.client_secret = None
         self.access_token = None
         self.refresh_token = None
-        self.expiry_seconds = None
+        self.expires_at = None
         self.hmac_key = str(hmac_key)
         self.hmac_secret = str(hmac_secret)
