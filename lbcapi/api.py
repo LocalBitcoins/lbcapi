@@ -107,7 +107,7 @@ class Connection():
                 # If HMAC Nonce is already used, then wait a little and try again
                 try:
                     response_json = response.json()
-                    if response_json.get('error', {}).get('error_code') == '42':
+                    if int(response_json.get('error', {}).get('error_code')) == 42:
                         time.sleep(0.1)
                         continue
                 except:
