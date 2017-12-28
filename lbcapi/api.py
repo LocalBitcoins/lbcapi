@@ -74,8 +74,8 @@ class Connection():
         # If HMAC
         elif self.hmac_key:
 
-            # Loop, so retrying is possible if nonce fails
-            while True:
+            # If nonce fails, retry several times, then give up
+            for retry in range(10):
 
                 nonce = str(int(time.time() * 1000))
 
@@ -115,6 +115,8 @@ class Connection():
                     pass
 
                 return response
+
+            raise Exception(u'Nonce is too small!')
 
         raise Exception(u'No OAuth2 or HMAC connection initialized!')
 
