@@ -4,7 +4,13 @@ To install
 ==========
 The easiset way to install lbcapi is to use pip. Open up a terminal window and type the following command to install
 
+For Python2.x:
+
     pip install lbcapi
+
+For Python3.x:
+
+    pip install lbcapi3
 
 If you're running OS X you may need to first install pip using homebrew. First, download and install Homebrew and then run the command
 
