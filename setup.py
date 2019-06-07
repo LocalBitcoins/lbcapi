@@ -7,7 +7,7 @@ os.chdir(os.path.normpath(os.path.join(os.path.abspath(__file__), os.pardir)))
 
 setup(
     name='lbcapi',
-    version='1.0',
+    version='1.0.1',
     packages=['lbcapi'],
     include_package_data=True,
     license='MIT License',
