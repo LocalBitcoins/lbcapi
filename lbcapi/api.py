@@ -2,6 +2,7 @@ import datetime
 import hashlib
 import hmac as hmac_lib
 import requests
+import sys
 import time
 try:
     # Python 3.x
@@ -47,6 +48,9 @@ class Connection():
         if method == 'GET' and files:
             raise Exception(u'You cannot send files with GET method!')
 
+        if files and not isinstance(files, dict):
+            raise Exception(u'"files" must be a dict of file objects or file contents!')
+
         # If URL is absolute, then convert it
         if url.startswith(self.server):
             url = url[len(self.server):]
@@ -82,7 +86,6 @@ class Connection():
             # If nonce fails, retry several times, then give up
             for retry in range(10):
 
-                # .encode('ascii') ensures a bytestring on Python 2.7 and 3.x
                 nonce = str(int(time.time() * 1000)).encode('ascii')
 
                 # Prepare request based on method.
@@ -96,10 +99,12 @@ class Connection():
                     params_encoded = urlparse(api_request.url).query
 
                 # Calculate signature
-                # .encode('ascii') ensures a bytestring on Python 2.7 and 3.x
                 message = nonce + self.hmac_key + url.encode('ascii')
                 if params_encoded:
-                    message += str(params_encoded).encode('ascii')
+                    if sys.version_info >= (3, 0) and isinstance(params_encoded, str):
+                        message += params_encoded.encode('ascii')
+                    else:
+                        message += params_encoded
                 signature = hmac_lib.new(self.hmac_secret, msg=message, digestmod=hashlib.sha256).hexdigest().upper()
 
                 # Store signature and other stuff to headers
@@ -153,6 +158,5 @@ class Connection():
         self.access_token = None
         self.refresh_token = None
         self.expires_at = None
-        # .encode('ascii') ensures a bytestring on Python 2.7 and 3.x
         self.hmac_key = hmac_key.encode('ascii')
         self.hmac_secret = hmac_secret.encode('ascii')
