@@ -114,6 +114,7 @@ class Connection():
 
                 # Send request
                 session = requests.Session()
+                session.proxies=urllib.request.getproxies()
                 response = session.send(api_request, stream=stream)
 
                 # If HMAC Nonce is already used, then wait a little and try again
