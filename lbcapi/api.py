@@ -4,6 +4,7 @@ import hmac as hmac_lib
 import requests
 import sys
 import time
+from urllib import request
 try:
     # Python 3.x
     from urllib.parse import urlparse
@@ -114,6 +115,7 @@ class Connection():
 
                 # Send request
                 session = requests.Session()
+                session.proxies=request.getproxies()
                 response = session.send(api_request, stream=stream)
 
                 # If HMAC Nonce is already used, then wait a little and try again
