@@ -1,6 +1,6 @@
 *.pyc
 /lbcapi.egg-info/
-dist/
-build/
+/dist/
+/build/
 .idea
-
+/venv/
