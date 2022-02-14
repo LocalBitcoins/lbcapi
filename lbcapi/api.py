@@ -99,10 +99,10 @@ class Connection():
                     params_encoded = urlparse(api_request.url).query
 
                 # Calculate signature
-                message = nonce + self.hmac_key + url.encode('ascii')
+                message = nonce + self.hmac_key + url.encode('UTF-8')
                 if params_encoded:
                     if sys.version_info >= (3, 0) and isinstance(params_encoded, str):
-                        message += params_encoded.encode('ascii')
+                        message += params_encoded.encode('UTF-8')
                     else:
                         message += params_encoded
                 signature = hmac_lib.new(self.hmac_secret, msg=message, digestmod=hashlib.sha256).hexdigest().upper()
